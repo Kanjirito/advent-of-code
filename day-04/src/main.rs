@@ -4,11 +4,28 @@ use std::io::BufReader;
 
 fn main() {
     let (guesses, mut boards) = load_input();
+    let mut hit_counter: usize = 0;
+    let number_of_boards = boards.len();
     'outer: for guess in guesses {
         for board in &mut boards {
+            if board.solved {
+                continue;
+            };
             if board.check_guess(guess) && board.check_if_won() {
-                println!("{}", board.count_unhit() * board.last_hit.unwrap());
-                break 'outer;
+                if hit_counter == 0 {
+                    println!(
+                        "Solution for part 1: {}",
+                        board.count_unhit() * board.last_hit.unwrap()
+                    );
+                };
+                hit_counter += 1;
+                if hit_counter == number_of_boards {
+                    println!(
+                        "Solution for part 2: {}",
+                        board.count_unhit() * board.last_hit.unwrap()
+                    );
+                    break 'outer;
+                }
             }
         }
     }
@@ -34,6 +51,7 @@ impl Field {
 struct BingoBoard {
     rows: Vec<Vec<Field>>,
     last_hit: Option<usize>,
+    solved: bool,
 }
 
 impl BingoBoard {
@@ -41,6 +59,7 @@ impl BingoBoard {
         Self {
             rows,
             last_hit: None,
+            solved: false,
         }
     }
 
@@ -48,7 +67,7 @@ impl BingoBoard {
         let mut hit = false;
         for row in &mut self.rows {
             for field in row {
-                if field.value == guess {
+                if field.value == guess && !field.hit {
                     field.hit = true;
                     self.last_hit = Some(guess);
                     hit = true;
@@ -58,9 +77,10 @@ impl BingoBoard {
         hit
     }
 
-    fn check_if_won(&self) -> bool {
+    fn check_if_won(&mut self) -> bool {
         for row in &self.rows {
             if row.iter().all(|item| item.is_hit()) {
+                self.solved = true;
                 return true;
             }
         }
@@ -73,6 +93,7 @@ impl BingoBoard {
                 }
             }
             if !miss {
+                self.solved = true;
                 return true;
             }
         }

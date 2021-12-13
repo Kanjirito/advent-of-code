@@ -2,7 +2,8 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
-#[allow(clippy::if_same_then_else)]
+const NEIGHBOURS: [(isize, isize); 4] = [(0, -1), (0, 1), (-1, 0), (1, 0)];
+
 fn main() {
     let input = load_input();
 
@@ -13,16 +14,11 @@ fn main() {
             if number == &9 {
                 continue;
             }
-            for x_offset in [-1, 0, 1] {
-                for y_offset in [-1, 0, 1] {
-                    if x_offset == y_offset {
-                        continue;
-                    } else if number
-                        >= &input[(x as isize + x_offset) as usize]
-                            [(y as isize + y_offset) as usize]
-                    {
-                        continue 'number;
-                    }
+            for (x_offset, y_offset) in NEIGHBOURS {
+                if number
+                    >= &input[(x as isize + x_offset) as usize][(y as isize + y_offset) as usize]
+                {
+                    continue 'number;
                 }
             }
 

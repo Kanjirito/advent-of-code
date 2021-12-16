@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
@@ -11,38 +10,78 @@ fn main() {
         id: String::from("start"),
         size: Size::Small,
     };
-    let mut counter: usize = 0;
-    let mut small_visited: HashSet<Cave> = HashSet::new();
-    find_path(&start, &mut small_visited, &mut counter, &rules);
-    println!("{}", counter);
+
+    let mut part1_counter: usize = 0;
+    let mut part2_counter: usize = 0;
+    let mut small_visited: Vec<Cave> = Vec::new();
+    find_path(
+        &start,
+        &mut small_visited,
+        &mut part1_counter,
+        &mut part2_counter,
+        &rules,
+        false,
+    );
+    println!("Solution for part 1: {}", part1_counter);
+    println!("Solution for part 2: {}", part2_counter);
 }
 
 fn find_path(
     current_cave: &Cave,
-    small_visited: &mut HashSet<Cave>,
-    end_counter: &mut usize,
+    small_visited: &mut Vec<Cave>,
+    part1_counter: &mut usize,
+    part2_counter: &mut usize,
     rules: &HashMap<Cave, Vec<Cave>>,
+    double_visit: bool,
 ) {
     if current_cave.is_small() {
-        small_visited.insert(current_cave.clone());
-    }
+        small_visited.push(current_cave.clone());
+    };
     for next_cave in &rules[current_cave] {
         match next_cave.size {
-            Size::Big => find_path(next_cave, small_visited, end_counter, rules),
+            Size::Big => find_path(
+                next_cave,
+                small_visited,
+                part1_counter,
+                part2_counter,
+                rules,
+                double_visit,
+            ),
             Size::Small => {
                 if small_visited.contains(next_cave) {
-                    continue;
+                    if double_visit || next_cave.id == "start" {
+                        continue;
+                    } else {
+                        find_path(
+                            next_cave,
+                            small_visited,
+                            part1_counter,
+                            part2_counter,
+                            rules,
+                            true,
+                        );
+                    }
                 } else if next_cave.id == "end" {
-                    *end_counter += 1;
+                    if !double_visit {
+                        *part1_counter += 1;
+                    }
+                    *part2_counter += 1;
                 } else {
-                    find_path(next_cave, small_visited, end_counter, rules)
+                    find_path(
+                        next_cave,
+                        small_visited,
+                        part1_counter,
+                        part2_counter,
+                        rules,
+                        double_visit,
+                    );
                 }
             }
         }
     }
     if current_cave.is_small() {
-        small_visited.remove(current_cave);
-    }
+        small_visited.pop();
+    };
 }
 
 fn load_input() -> HashMap<Cave, Vec<Cave>> {

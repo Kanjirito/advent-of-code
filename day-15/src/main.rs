@@ -1,105 +1,92 @@
-use std::collections::HashSet;
+use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 use std::fs::File;
 use std::io::prelude::*;
-use std::io::BufReader;
 use std::str::FromStr;
 
 type Cords = (usize, usize);
 const NEIGHBOURS: [(isize, isize); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)];
 
 fn main() {
-    let mut input = load_input();
-    let l_1 = input.len() - 2;
-    let l_2 = input[0].len() - 2;
-    println!("{}", dijkstra(&mut input, (1, 1), (l_1, l_2)));
+    let input = load_input();
+    let original_len_1 = (input.len() - 2) / 5;
+    let original_len_2 = (input[0].len() - 2) / 5;
+    println!(
+        "Solution for part 1: {}",
+        dijkstra(&input, (1, 1), (original_len_1, original_len_2))
+    );
+    let extended_len_1 = input.len() - 2;
+    let extended_len_2 = input[0].len() - 2;
+    println!(
+        "Solution for part 2: {}",
+        dijkstra(&input, (1, 1), (extended_len_1, extended_len_2))
+    );
 }
 
-fn dijkstra(graph: &mut [Vec<Field>], start: Cords, target: Cords) -> usize {
-    let mut stack: HashSet<Cords> = HashSet::new();
-    for (y, row) in graph.iter().enumerate() {
-        for (x, field) in row.iter().enumerate() {
-            if let Field::Point { .. } = field {
-                stack.insert((y, x));
-            }
-        }
-    }
-    match graph[start.0][start.1] {
+fn dijkstra(grid: &[Vec<Field>], start: Cords, target: Cords) -> usize {
+    let mut distance: Vec<Vec<usize>> = vec![vec![usize::MAX; grid[0].len()]; grid.len()];
+    let mut heap = BinaryHeap::new();
+    match grid[start.0][start.1] {
+        // Start position will never be border
         Field::Border => unreachable!(),
-        Field::Point {
-            ref mut shortest_counter,
-            ..
-        } => {
-            *shortest_counter = 0;
-        }
+        Field::Point { .. } => heap.push(DijkstraElement {
+            current_cost: 0,
+            position: start,
+        }),
     }
-
-    while !stack.is_empty() {
-        let current_cords = *stack
-            .iter()
-            .min_by_key(|(y, x)| -> usize {
-                match graph[*y][*x] {
-                    Field::Border => unreachable!(),
-                    Field::Point {
-                        cost: _,
-                        shortest_counter,
-                        prev_node: _,
-                    } => shortest_counter,
-                }
-            })
-            .unwrap();
-        stack.remove(&current_cords);
-        if current_cords == target {
+    distance[start.0][start.1] = 0;
+    while let Some(DijkstraElement {
+        current_cost,
+        position,
+    }) = heap.pop()
+    {
+        if position == target {
             break;
         }
-        let current_field = graph[current_cords.0][current_cords.1];
+        if current_cost > distance[position.0][position.1] {
+            continue;
+        }
         for (y_offset, x_offset) in NEIGHBOURS {
-            let new_y = (current_cords.0 as isize + y_offset) as usize;
-            let new_x = (current_cords.1 as isize + x_offset) as usize;
-            let new_cords = (new_y, new_x);
-            if !stack.contains(&new_cords) {
-                continue;
-            };
-            match graph[new_y][new_x] {
+            let new_y = (position.0 as isize + y_offset) as usize;
+            let new_x = (position.1 as isize + x_offset) as usize;
+            match grid[new_y][new_x] {
                 Field::Border => continue,
-                Field::Point {
-                    cost,
-                    ref mut shortest_counter,
-                    ref mut prev_node,
-                } => {
-                    let new_distance = cost
-                        + match current_field {
-                            Field::Border => unreachable!(),
-                            Field::Point {
-                                shortest_counter, ..
-                            } => shortest_counter,
-                        };
-                    if new_distance < *shortest_counter {
-                        *shortest_counter = new_distance;
-                        *prev_node = Some(current_cords);
+                Field::Point(next_cost) => {
+                    let next_element = DijkstraElement {
+                        current_cost: next_cost + current_cost,
+                        position: (new_y, new_x),
+                    };
+                    if next_element.current_cost < distance[new_y][new_x] {
+                        distance[new_y][new_x] = next_element.current_cost;
+                        heap.push(next_element)
                     }
                 }
             }
         }
     }
-    match graph[target.0][target.1] {
-        Field::Border => unreachable!(),
-        Field::Point {
-            shortest_counter, ..
-        } => shortest_counter,
-    }
+    distance[target.0][target.1]
 }
 
 fn load_input() -> Vec<Vec<Field>> {
-    let file = File::open("input").expect("No input file found");
-    let reader = BufReader::new(file);
+    let mut file = File::open("input").expect("No input file found");
+    let mut input = String::new();
+    file.read_to_string(&mut input).unwrap();
     let mut grid: Vec<Vec<Field>> = Vec::new();
-    for line in reader.lines() {
-        grid.push(
-            line.unwrap()
-                .split("")
-                .map(|x| x.parse::<Field>().unwrap())
-                .collect(),
-        )
+    for down in 0..5 {
+        for line in input.split('\n').filter(|x| !x.is_empty()) {
+            let mut row: Vec<Field> = vec![Field::Border];
+            for right in 0..5 {
+                for part in line.split("").filter(|x| !x.is_empty()) {
+                    let mut num = (part.parse::<usize>().unwrap() + down + right) % 9;
+                    if num == 0 {
+                        num = 9;
+                    };
+                    row.push(Field::new_point(num));
+                }
+            }
+            row.push(Field::Border);
+            grid.push(row);
+        }
     }
     let l = grid[0].len();
     grid.push(vec![Field::Border; l]);
@@ -110,11 +97,13 @@ fn load_input() -> Vec<Vec<Field>> {
 #[derive(Debug, Clone, Copy)]
 enum Field {
     Border,
-    Point {
-        cost: usize,
-        shortest_counter: usize,
-        prev_node: Option<Cords>,
-    },
+    Point(usize),
+}
+
+impl Field {
+    fn new_point(num: usize) -> Self {
+        Self::Point(num)
+    }
 }
 
 impl FromStr for Field {
@@ -122,12 +111,29 @@ impl FromStr for Field {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(match s.parse::<usize>() {
-            Ok(num) => Self::Point {
-                cost: num,
-                shortest_counter: usize::MAX,
-                prev_node: None,
-            },
+            Ok(num) => Self::Point(num),
             Err(_) => Self::Border,
         })
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct DijkstraElement {
+    current_cost: usize,
+    position: Cords,
+}
+
+impl Ord for DijkstraElement {
+    fn cmp(&self, other: &Self) -> Ordering {
+        other
+            .current_cost
+            .cmp(&self.current_cost)
+            .then_with(|| self.position.cmp(&other.position))
+    }
+}
+
+impl PartialOrd for DijkstraElement {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }

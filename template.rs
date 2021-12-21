@@ -6,7 +6,7 @@ fn main() {
     let input = load_input();
 }
 
-fn load_input() -> {
+fn load_input() {
     let file = File::open("input").expect("No input file found");
     let reader = BufReader::new(file);
 }

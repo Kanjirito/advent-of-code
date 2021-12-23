@@ -1,10 +1,19 @@
-#![allow(dead_code)]
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::BufReader;
 
+// All the possible rolls from the quantum dice
+const QUANTUM: [usize; 27] = [
+    3, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 9,
+];
+
 fn main() {
     let mut players = load_input();
+    let first_state = GameState {
+        player_one: players[0],
+        player_two: players[1],
+    };
     players.reverse();
     let mut dice = PracticeDice::new(1, 100);
     for roll_n in 1.. {
@@ -17,6 +26,41 @@ fn main() {
         }
         players.insert(0, current_player)
     }
+    println!(
+        "Solution for part 2: {}",
+        solve_from_state(first_state, &mut HashMap::new())
+            .iter()
+            .max()
+            .unwrap()
+    );
+}
+
+fn solve_from_state(state: GameState, cache: &mut HashMap<GameState, [usize; 2]>) -> [usize; 2] {
+    if let Some(counters) = cache.get(&state) {
+        return *counters;
+    }
+
+    let mut local_counters = [0, 0];
+    'first: for first_roll in QUANTUM {
+        for second_roll in QUANTUM {
+            let mut new_state = state;
+            new_state.player_one.move_positon(first_roll);
+            new_state.player_two.move_positon(second_roll);
+            if new_state.player_one.check_if_won(21) {
+                local_counters[0] += 1;
+                // Player 1 already won so stop searching for player 2 wins
+                continue 'first;
+            } else if new_state.player_two.check_if_won(21) {
+                local_counters[1] += 1;
+            } else {
+                let r = solve_from_state(new_state, cache);
+                local_counters[0] += r[0];
+                local_counters[1] += r[1];
+            }
+        }
+    }
+    cache.insert(state, local_counters);
+    local_counters
 }
 
 fn load_input() -> Vec<Player> {
@@ -37,7 +81,7 @@ fn load_input() -> Vec<Player> {
         .collect()
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 struct Player {
     current_position: usize,
     score: usize,
@@ -63,13 +107,8 @@ impl Player {
         self.score += self.current_position
     }
 
-    fn check_if_won(&mut self, target: usize) -> bool {
-        if self.score >= target {
-            self.won = true;
-            true
-        } else {
-            false
-        }
+    fn check_if_won(&self, target: usize) -> bool {
+        self.score >= target
     }
 }
 
@@ -112,4 +151,10 @@ trait Dice: Iterator<Item = usize> {
     {
         self.take(3).sum()
     }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+struct GameState {
+    player_one: Player,
+    player_two: Player,
 }

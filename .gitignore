@@ -21,7 +21,4 @@ Cargo.lock
 
 # Advent of code input file
 input
-
-# Added by cargo
-
-/target
+parsed

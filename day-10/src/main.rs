@@ -1,3 +1,64 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::io::BufReader;
+
 fn main() {
-    println!("Hello, world!");
+    let input = load_input("input");
+    println!("Solution for part 1: {}", solve(&input, 40));
+    println!("Solution for part 2: {}", solve(&input, 50));
+}
+
+fn solve(numbers: &[usize], count: usize) -> usize {
+    let mut new = numbers.to_vec();
+    for _ in 0..count {
+        play_game(&mut new);
+    }
+    new.len()
+}
+
+fn play_game(numbers: &mut Vec<usize>) {
+    let mut new = vec![];
+    let mut stack: Vec<usize> = vec![];
+    for n in numbers.iter() {
+        if let Some(s) = stack.last() {
+            if s != n {
+                new.push(stack.len());
+                new.push(stack[0]);
+                stack.clear();
+            }
+        }
+        stack.push(*n)
+    }
+    new.push(stack.len());
+    new.push(stack[0]);
+    *numbers = new;
+}
+
+fn load_input(name: &str) -> Vec<usize> {
+    let file = File::open(name).unwrap_or_else(|_| panic!("No \"{}\" file found", name));
+    BufReader::new(file)
+        .lines()
+        .flat_map(|l| l.unwrap().chars().collect::<Vec<_>>())
+        .map(|d| d.to_digit(10).unwrap() as usize)
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn game_test() {
+        let mut input = vec![1];
+        play_game(&mut input);
+        assert_eq!(input, vec![1, 1]);
+        play_game(&mut input);
+        assert_eq!(input, vec![2, 1]);
+        play_game(&mut input);
+        assert_eq!(input, vec![1, 2, 1, 1]);
+        play_game(&mut input);
+        assert_eq!(input, vec![1, 1, 1, 2, 2, 1]);
+        play_game(&mut input);
+        assert_eq!(input, vec![3, 1, 2, 2, 1, 1]);
+    }
 }

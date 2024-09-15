@@ -5,10 +5,11 @@ use std::io::BufReader;
 
 fn main() {
     let input = load_input("input");
-    println!("Solution for part 1: {}", part_1(&input));
+    println!("Solution for part 1: {}", part_1_no_allocation(&input));
     println!("Solution for part 2: {}", part_2(&input));
 }
 
+#[allow(dead_code)]
 fn part_1(strings: &[String]) -> usize {
     let mut counter = 0;
     let hex_reg = Regex::new(r"\\x[[:xdigit:]][[:xdigit:]]").unwrap();
@@ -19,7 +20,7 @@ fn part_1(strings: &[String]) -> usize {
             .strip_suffix('"')
             .unwrap()
             .to_owned();
-        cur = cur.replace("\\\\", "\\");
+        cur = cur.replace("\\\\", "/");
         cur = hex_reg.replace_all(&cur, "|").to_string();
         cur = cur.replace("\\\"", "\"");
         counter += s.len() - cur.len();
@@ -27,19 +28,19 @@ fn part_1(strings: &[String]) -> usize {
     counter
 }
 
-#[allow(dead_code)]
-fn part_1_no_replace(strings: &[String]) -> usize {
+fn part_1_no_allocation(strings: &[String]) -> usize {
+    // Searches for non overlapping patters to replace
+    // Hex reduces the character count by 3 and the rest by 1
     let mut counter = 0;
-    let hex_reg = Regex::new(r"\\x[[:xdigit:]][[:xdigit:]]").unwrap();
-    let double_slash_reg = Regex::new(r"\\\\").unwrap();
-    let qoute_reg = Regex::new(r#"\\\""#).unwrap();
+    let reg = Regex::new(r#"(?P<hex>\\x[[:xdigit:]][[:xdigit:]])|(\\\\)|(\\")"#).unwrap();
 
     for s in strings {
         let mut local = s.len() - 2;
-        local -= double_slash_reg.find_iter(s).count();
-        local -= qoute_reg.find_iter(s).count();
-        local -= hex_reg.find_iter(s).map(|_| 3).sum::<usize>();
-        counter += s.len() - local;
+        local -= reg
+            .captures_iter(s)
+            .map(|c| if c.name("hex").is_some() { 3 } else { 1 })
+            .sum::<usize>();
+        counter += s.len() - local
     }
 
     counter
@@ -78,9 +79,27 @@ mod tests {
     }
 
     #[test]
-    fn part_1_no_replace_test() {
+    fn part_1_no_allocation_test() {
         let input = load_input("example");
-        assert_eq!(part_1_no_replace(&input), 12);
+        assert_eq!(part_1_no_allocation(&input), 12);
+    }
+
+    #[test]
+    fn part_1_both_solutions() {
+        let input = load_input("input");
+        assert_eq!(part_1_no_allocation(&input), part_1(&input));
+    }
+
+    #[test]
+    fn part_1_overlap_case() {
+        let input = [r#""\\xab""#.to_owned()];
+        assert_eq!(part_1(&input), 3)
+    }
+
+    #[test]
+    fn part_1_overlap_no_allocation() {
+        let input = [r#""\\xab""#.to_owned()];
+        assert_eq!(part_1_no_allocation(&input), 3)
     }
 
     #[test]

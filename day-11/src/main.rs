@@ -7,10 +7,7 @@ fn main() {
     let input = load_input("input");
     let first = solve(&input);
     println!("Solution for part 1: {}", first);
-    let mut tmp = str_to_u8(&first);
-    // Need to increment it again because the previous is obviously valid
-    increment_passw(&mut tmp);
-    println!("Solution for part 2: {}", solve(&tmp));
+    println!("Solution for part 2: {}", solve(&str_to_u8(&first)));
 }
 
 fn get_passw(pass: &[u8]) -> String {
@@ -46,6 +43,8 @@ fn check_passw(pass: &[u8]) -> bool {
 
 fn solve(pass: &[u8]) -> String {
     let mut cur = pass.to_vec();
+    // The next password can't be this password so we increment right away
+    increment_passw(&mut cur);
     while !check_passw(&cur) {
         increment_passw(&mut cur);
     }
@@ -55,10 +54,25 @@ fn solve(pass: &[u8]) -> String {
 /// Increments the password, returns true if the first char went over
 fn increment_passw(pass: &mut [u8]) -> bool {
     let mut ran_out = true;
-    for n in pass.iter_mut().rev() {
-        *n += 1;
-        let div = *n / 26;
-        *n %= 26;
+
+    for i in (0..pass.len()).rev() {
+        let n = pass[i];
+
+        // If next letter is i/o/l...
+        if n == 7 || n == 10 || n == 13 {
+            // ...skip it...
+            pass[i] += 2;
+            // ...and set all of the trailing chars to 0
+            for z in pass[i + 1..].iter_mut() {
+                *z = 0;
+            }
+        } else {
+            pass[i] += 1;
+        }
+
+        let n_ref = pass.get_mut(i).unwrap();
+        let div = *n_ref / 26;
+        *n_ref %= 26;
         if div == 0 {
             ran_out = false;
             break;
@@ -84,10 +98,19 @@ mod tests {
     #[test]
     fn test_increment() {
         let mut input = vec![0];
-        for x in 0..30 {
-            increment_passw(&mut input);
-            assert_eq!((x + 1) % 26, input[0]);
-        }
+        let result = (0..23)
+            .map(|_| {
+                increment_passw(&mut input);
+                input[0]
+            })
+            .fold(Vec::new(), |mut v, r| {
+                v.push(r);
+                v
+            });
+        assert_eq!(
+            result,
+            vec![1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 0]
+        );
     }
 
     #[test]

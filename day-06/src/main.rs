@@ -1,4 +1,3 @@
-#![allow(unused_variables, dead_code)]
 use std::collections::HashSet;
 use std::fs::File;
 use std::io::prelude::*;
@@ -7,9 +6,9 @@ use std::io::BufReader;
 type Grid = Vec<Vec<Tile>>;
 
 fn main() {
-    let (grid, guard) = load_input("input");
+    let (mut grid, guard) = load_input("input");
     println!("Solution for part 1: {}", part_1(&grid, guard));
-    println!("Solution for part 2: {}", part_2(&grid, guard));
+    println!("Solution for part 2: {}", part_2(&mut grid, guard));
 }
 
 fn part_1(grid: &Grid, mut guard: Guard) -> usize {
@@ -46,63 +45,74 @@ fn part_1(grid: &Grid, mut guard: Guard) -> usize {
     seen.len()
 }
 
-fn part_2(grid: &Grid, guard: Guard) -> usize {
+fn part_2(grid: &mut Grid, guard: Guard) -> usize {
     let mut possible: HashSet<(usize, usize)> = HashSet::new();
-    let seen = HashSet::new();
-
-    walk(grid, guard, seen, &mut possible, true);
-
+    walk(grid, guard, HashSet::new(), &mut possible, true);
     // Can't place block on start position
-    possible.remove(&(guard.x, guard.y));
+    // possible.remove(&(guard.x, guard.y));
     possible.len()
 }
 
 fn walk(
-    grid: &Grid,
+    grid: &mut Grid,
     mut guard: Guard,
     mut seen: HashSet<Guard>,
     possible: &mut HashSet<(usize, usize)>,
     can_block: bool,
 ) -> bool {
     loop {
+        if seen.contains(&guard) {
+            // We've already been here so it's a loop
+            return true;
+        }
+        seen.insert(guard);
         // (x, y)
         let modif = guard.get_modif();
-        let mut x = guard.x;
-        let mut y = guard.y;
-        loop {
-            if seen.contains(&guard) {
-                // We've already been here so it's a loop
-                return true;
-            }
-            seen.insert(guard);
-            x = x.saturating_add_signed(modif.0);
-            y = y.saturating_add_signed(modif.1);
+        let x = guard.x.saturating_add_signed(modif.0);
+        let y = guard.y.saturating_add_signed(modif.1);
 
-            // Check the next tile
-            match grid[y][x] {
-                // We are on ground and the next tile is also ground
-                Tile::Ground => {
-                    // first check if inserting a block there would cause a loop
+        // Check the next tile
+        match grid[y][x] {
+            // We are on ground and the next tile is also ground
+            Tile::Ground => {
+                // first check if inserting a block there would cause a loop
+                if can_block {
+                    // Checks if the next tile wasn't visited already, if yes block can't be
+                    // placed there
+                    let mut tmp = Guard { x, y, dire: 0 };
+                    let mut valid = true;
+                    for _ in 0..4 {
+                        if seen.contains(&tmp) {
+                            valid = false;
+                            break;
+                        }
+                        tmp.rotate();
+                    }
+
                     let mut g = guard;
                     g.rotate();
-                    if can_block && walk(grid, g, seen.clone(), possible, false) {
+                    // Place the new block
+                    grid[y][x] = Tile::Block;
+                    if valid && walk(grid, g, seen.clone(), possible, false) {
                         possible.insert((x, y));
                     }
-                    // and then just go to that tile
-                    guard = Guard {
-                        x,
-                        y,
-                        dire: guard.dire,
-                    };
+                    // Remove the block
+                    grid[y][x] = Tile::Ground;
                 }
-                // Block ahead so just rotate
-                Tile::Block => {
-                    guard.rotate();
-                    break;
-                }
-                // Out of bounds so no loop
-                Tile::Wall => return false,
+
+                // and then just go to that tile
+                guard = Guard {
+                    x,
+                    y,
+                    dire: guard.dire,
+                };
             }
+            // Block ahead so just rotate
+            Tile::Block => {
+                guard.rotate();
+            }
+            // Out of bounds so no loop
+            Tile::Wall => return false,
         }
     }
 }
@@ -158,10 +168,6 @@ impl Guard {
         self.dire = (self.dire + 1) % 4;
     }
 
-    fn is_next(&self, other: &Guard) -> bool {
-        (self.dire + 1) % 4 == other.dire
-    }
-
     fn get_modif(&self) -> (isize, isize) {
         match self.dire {
             0 => (0, -1),
@@ -192,6 +198,7 @@ impl TryFrom<char> for Tile {
     }
 }
 
+#[allow(dead_code)]
 fn print_grid(grid: &Grid) {
     for line in grid {
         for tile in line {
@@ -218,7 +225,13 @@ mod tests {
 
     #[test]
     fn part_2_test() {
-        let (grid, guard) = load_input("example");
-        assert_eq!(part_2(&grid, guard), 6);
+        let (mut grid, guard) = load_input("example");
+        assert_eq!(part_2(&mut grid, guard), 6);
+    }
+
+    #[test]
+    fn part_2_test_custom() {
+        let (mut grid, guard) = load_input("example2");
+        assert_eq!(part_2(&mut grid, guard), 1);
     }
 }

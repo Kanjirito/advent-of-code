@@ -20,7 +20,7 @@ Cargo.lock
 # End of https://www.toptal.com/developers/gitignore/api/rust
 
 # Advent of code input file
-input
-parsed
-example*
-puzzle.md
+**/input
+**/parsed
+**/example*
+**/puzzle.md

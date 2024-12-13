@@ -107,3 +107,34 @@ impl<B: std::io::BufRead> Iterator for LinesUnwrap<B> {
         self.inner.next().map(|r| r.unwrap())
     }
 }
+
+pub fn divmod<T>(first: T, second: T) -> (T, T)
+where
+    T: std::ops::Div<Output = T> + std::ops::Rem<Output = T> + Copy,
+{
+    (first / second, first % second)
+}
+
+/// Greatest common divisor
+///
+/// A number that both of the arguments can be divided by.
+pub fn gcd(first: usize, second: usize) -> usize {
+    let (bigger, smaller) = if first >= second {
+        (first, second)
+    } else {
+        (second, first)
+    };
+    let rem = bigger % smaller;
+    if rem == 0 {
+        smaller
+    } else {
+        gcd(smaller, rem)
+    }
+}
+
+/// Least common multiple
+///
+/// A number that can be divided by both of the arguments.
+pub fn lcm(first: usize, second: usize) -> usize {
+    (first * second) / gcd(first, second)
+}

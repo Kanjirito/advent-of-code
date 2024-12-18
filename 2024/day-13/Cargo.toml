@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-utils = { version = "0.1.0", path = "../../utils" }
+utils = { git = "https://github.com/Kanjirito/advent-of-code.git", rev = "2b8bcdd9eca9234a6984c402ccbd59926f2d752f"}

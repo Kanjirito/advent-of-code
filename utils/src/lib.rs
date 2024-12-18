@@ -1,20 +1,7 @@
 use std::fmt::Display;
 use std::io::BufRead;
 
-/// \[RIGHT, DOWN, LEFT, UP\]
-pub const DIAGONAL: [(isize, isize); 4] = [(1, 0), (0, 1), (-1, 0), (0, -1)];
-
-/// Clockwise starting from right
-pub const AROUND: [(isize, isize); 8] = [
-    (1, 0),
-    (1, 1),
-    (0, 1),
-    (-1, 1),
-    (-1, 0),
-    (-1, -1),
-    (0, -1),
-    (1, -1),
-];
+pub mod cursor;
 
 pub type Grid<T> = Vec<Vec<T>>;
 

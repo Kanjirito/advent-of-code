@@ -27,7 +27,7 @@ pub struct GridMaker<T> {
 
 impl<T> GridMaker<T>
 where
-    T: Copy,
+    T: Clone,
 {
     pub fn new(border: T) -> Self {
         Self {
@@ -36,46 +36,91 @@ where
         }
     }
 
+    /// Create a new empty grid of the given size.
+    ///
+    /// The `width` and `heigh` are for the empty space so the final `Grid` will be `width + 2` x
+    /// `height + 2`. `empty` = what to fill the empty grid with.
+    pub fn new_empty(border: T, empty: T, width: usize, height: usize) -> Grid<T> {
+        let mut grid = Self::new(border);
+        for _ in 0..height {
+            grid.push(vec![empty.clone(); width]);
+        }
+        grid.finish()
+    }
+
     /// Push a new line and insert a T at start and end.
     pub fn push<I>(&mut self, value: I)
     where
         I: IntoIterator<Item = T>,
     {
-        let mut cur = vec![self.border];
+        let mut cur = vec![self.border.clone()];
         cur.extend(value);
-        cur.push(self.border);
+        cur.push(self.border.clone());
         self.inner.push(cur);
     }
 
     /// Finish creating the grid by adding lines of T at start and end.
     pub fn finish(mut self) -> Grid<T> {
-        self.inner[0] = vec![self.border; self.inner[1].len()];
-        self.inner.push(vec![self.border; self.inner[1].len()]);
+        self.inner[0] = vec![self.border.clone(); self.inner[1].len()];
+        self.inner
+            .push(vec![self.border.clone(); self.inner[1].len()]);
         self.inner
     }
 }
 
-pub fn print_grid<T>(grid: &[Vec<T>])
+pub fn print_grid<T>(grid: &[Vec<T>], border: GridBorderType)
 where
     T: Display,
 {
-    for line in grid {
-        for ele in line {
-            print!("{ele}")
+    match border {
+        GridBorderType::AddBorder(border) => {
+            let width = grid[0].len() + 2;
+            for _ in 0..width {
+                print!("{border}")
+            }
+            println!();
+            for line in grid {
+                print!("{border}");
+                for tile in line {
+                    print!("{tile}");
+                }
+                print!("{border}");
+                println!();
+            }
+            for _ in 0..width {
+                print!("{border}")
+            }
+            println!();
         }
-        println!();
+        GridBorderType::AsIs => {
+            for line in grid {
+                for ele in line {
+                    print!("{ele}")
+                }
+                println!();
+            }
+        }
+        GridBorderType::RemoveBorder => {
+            for y in 1..(grid.len() - 1) {
+                for x in 1..(grid[0].len() - 1) {
+                    print!("{}", grid[y][x])
+                }
+                println!();
+            }
+        }
     }
 }
 
-pub fn print_grid_no_border<T>(grid: &[Vec<T>])
-where
-    T: Display,
-{
-    for y in 1..(grid.len() - 1) {
-        for x in 1..(grid[0].len() - 1) {
-            print!("{}", grid[y][x])
-        }
-        println!();
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub enum GridBorderType<'a> {
+    AddBorder(&'a str),
+    AsIs,
+    RemoveBorder,
+}
+
+impl Default for GridBorderType<'_> {
+    fn default() -> Self {
+        Self::AsIs
     }
 }
 

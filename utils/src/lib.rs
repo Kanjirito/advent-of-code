@@ -2,6 +2,7 @@ use std::fmt::Display;
 use std::io::BufRead;
 
 pub mod cursor;
+pub mod math;
 
 pub type Grid<T> = Vec<Vec<T>>;
 
@@ -9,28 +10,29 @@ pub type Grid<T> = Vec<Vec<T>>;
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]
 pub struct GridMaker<T> {
     inner: Grid<T>,
-    border: T,
+    border: Option<T>,
 }
 
 impl<T> GridMaker<T>
 where
     T: Clone,
 {
-    pub fn new(border: T) -> Self {
-        Self {
-            inner: vec![Vec::new()],
-            border,
-        }
+    pub fn new(border: Option<T>) -> Self {
+        let inner = match border {
+            Some(_) => vec![vec![]],
+            None => vec![],
+        };
+        Self { inner, border }
     }
 
     /// Create a new empty grid of the given size.
     ///
     /// The `width` and `heigh` are for the empty space so the final `Grid` will be `width + 2` x
-    /// `height + 2`. `empty` = what to fill the empty grid with.
-    pub fn new_empty(border: T, empty: T, width: usize, height: usize) -> Grid<T> {
+    /// `height + 2` if a border is given. `filler` = what to fill the empty grid with.
+    pub fn new_empty(border: Option<T>, filler: T, width: usize, height: usize) -> Grid<T> {
         let mut grid = Self::new(border);
         for _ in 0..height {
-            grid.push(vec![empty.clone(); width]);
+            grid.push(vec![filler.clone(); width]);
         }
         grid.finish()
     }
@@ -40,17 +42,30 @@ where
     where
         I: IntoIterator<Item = T>,
     {
-        let mut cur = vec![self.border.clone()];
+        let border = match &self.border {
+            Some(b) => b,
+            None => {
+                self.inner.push(value.into_iter().collect());
+                return;
+            }
+        };
+        let mut cur = vec![border.clone()];
         cur.extend(value);
-        cur.push(self.border.clone());
+        cur.push(border.clone());
         self.inner.push(cur);
     }
 
     /// Finish creating the grid by adding lines of T at start and end.
     pub fn finish(mut self) -> Grid<T> {
-        self.inner[0] = vec![self.border.clone(); self.inner[1].len()];
-        self.inner
-            .push(vec![self.border.clone(); self.inner[1].len()]);
+        let border = match &self.border {
+            Some(b) => b,
+            None => return self.inner,
+        };
+        if self.inner.len() == 1 {
+            return vec![];
+        }
+        self.inner[0] = vec![border.clone(); self.inner[1].len()];
+        self.inner.push(vec![border.clone(); self.inner[1].len()]);
         self.inner
     }
 }
@@ -140,33 +155,87 @@ impl<B: std::io::BufRead> Iterator for LinesUnwrap<B> {
     }
 }
 
-pub fn divmod<T>(first: T, second: T) -> (T, T)
-where
-    T: std::ops::Div<Output = T> + std::ops::Rem<Output = T> + Copy,
-{
-    (first / second, first % second)
-}
+#[cfg(test)]
+mod grid_maker_tests {
+    use super::*;
 
-/// Greatest common divisor
-///
-/// A number that both of the arguments can be divided by.
-pub fn gcd(first: usize, second: usize) -> usize {
-    let (bigger, smaller) = if first >= second {
-        (first, second)
-    } else {
-        (second, first)
-    };
-    let rem = bigger % smaller;
-    if rem == 0 {
-        smaller
-    } else {
-        gcd(smaller, rem)
+    #[test]
+    fn new_no_border() {
+        let new: GridMaker<char> = GridMaker::new(None);
+        assert_eq!(
+            new,
+            GridMaker {
+                inner: vec![],
+                border: None
+            }
+        );
+        let empty: Vec<Vec<char>> = vec![];
+        assert_eq!(new.finish(), empty);
     }
-}
 
-/// Least common multiple
-///
-/// A number that can be divided by both of the arguments.
-pub fn lcm(first: usize, second: usize) -> usize {
-    (first * second) / gcd(first, second)
+    #[test]
+    fn no_border_push() {
+        let mut grid = GridMaker::new(None);
+        grid.push(['.']);
+        assert_eq!(grid.inner, vec![vec!['.']]);
+    }
+
+    #[test]
+    fn new_border() {
+        let new: GridMaker<char> = GridMaker::new(Some('X'));
+        assert_eq!(
+            new,
+            GridMaker {
+                inner: vec![vec![]],
+                border: Some('X')
+            }
+        );
+
+        let empty: Vec<Vec<char>> = vec![];
+        assert_eq!(new.finish(), empty);
+    }
+
+    #[test]
+    fn border_push() {
+        let mut grid = GridMaker::new(Some('X'));
+        grid.push(['.']);
+        #[rustfmt::skip]
+        let manual = [
+            ['X', 'X', 'X'],
+            ['X', '.', 'X'],
+            ['X', 'X', 'X'],
+        ];
+        assert_eq!(grid.inner, vec![vec![], vec!['X', '.', 'X']]);
+        assert_eq!(grid.finish(), manual);
+    }
+
+    #[test]
+    fn new_empty_no_border() {
+        let new_empty = GridMaker::new_empty(None, '.', 10, 10);
+        assert_eq!(new_empty.len(), 10);
+        assert_eq!(new_empty[0].len(), 10);
+        assert_eq!(new_empty, vec![vec!['.'; 10]; 10]);
+    }
+
+    #[test]
+    fn new_empty_border() {
+        let new_empty = GridMaker::new_empty(Some('X'), '.', 10, 10);
+        let manual = [
+            ['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', 'X'],
+            ['X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X', 'X'],
+        ];
+        assert_eq!(new_empty.len(), 12);
+        assert_eq!(new_empty[0].len(), 12);
+        assert_eq!(new_empty, manual);
+    }
 }

@@ -41,6 +41,10 @@ pub fn lcm(first: usize, second: usize) -> usize {
     (first * second) / gcd(first, second)
 }
 
+pub fn manhattan_distance(first: (usize, usize), second: (usize, usize)) -> usize {
+    first.0.abs_diff(second.0) + first.1.abs_diff(second.1)
+}
+
 #[cfg(test)]
 mod divmod_tests {
     use super::*;

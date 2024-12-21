@@ -88,6 +88,14 @@ impl Cursor {
         &self.allowed_dire
     }
 
+    pub fn get_x(&self) -> usize {
+        self.x
+    }
+
+    pub fn get_y(&self) -> usize {
+        self.y
+    }
+
     pub fn get_coords(&self) -> (usize, usize) {
         (self.x, self.y)
     }
@@ -112,6 +120,14 @@ impl Cursor {
         F: Fn(&T) -> bool,
     {
         Moves::new(self, grid, check).collect()
+    }
+
+    pub fn index_grid<'grid, T>(&self, grid: &'grid Grid<T>) -> &'grid T {
+        &grid[self.y][self.x]
+    }
+
+    pub fn index_grid_mut<'grid, T>(&self, grid: &'grid mut Grid<T>) -> &'grid mut T {
+        &mut grid[self.y][self.x]
     }
 }
 

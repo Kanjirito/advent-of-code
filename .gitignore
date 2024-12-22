@@ -21,6 +21,7 @@ Cargo.lock
 
 # Advent of code input file
 **/input
+**/output
 **/parsed
 **/example*
 **/puzzle.md

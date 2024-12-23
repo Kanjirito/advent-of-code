@@ -5,18 +5,34 @@ use utils::BufReadExt;
 
 fn main() {
     let input = load_input("input");
-    println!("Solution for part 1: {}", part_1(input));
-    // println!("Solution for part 2: {}", part_2(&input));
+    println!("Solution for part 1: {}", part_1(&input));
+    println!("Solution for part 2: {}", part_2(&input));
 }
 
-fn part_1(mut computer: Computer) -> String {
-    computer.run_program();
-    // dbg!(&computer);
-    computer.get_result()
+fn part_2(start: &Computer) -> usize {
+    let mut solutions = vec![];
+    let mut q = vec![(0, 1)];
+
+    while let Some((cur_number, cur_pos)) = q.pop() {
+        for x in 0..8 {
+            let v = cur_number + x;
+            let solved = Computer::shortcut(start, v);
+            if solved.result[..] == solved.program[(solved.program.len() - cur_pos)..] {
+                if solved.result.len() == solved.program.len() {
+                    solutions.push(v);
+                    continue;
+                }
+                q.push((v << 3, cur_pos + 1))
+            }
+        }
+    }
+    *solutions.iter().min().unwrap()
 }
 
-fn part_2() {
-    todo!()
+fn part_1(computer: &Computer) -> String {
+    let mut cur = computer.clone();
+    cur.run_program();
+    cur.get_result()
 }
 
 fn load_input(name: &str) -> Computer {
@@ -65,10 +81,11 @@ struct Computer {
     reg_c: usize,
     program: Vec<usize>,
     cur_op: usize,
-    result: Vec<String>,
+    result: Vec<usize>,
 }
 
 impl Computer {
+    #[allow(dead_code)]
     fn new(a: usize, b: usize, c: usize, program: Vec<usize>) -> Self {
         Self {
             reg_a: a,
@@ -80,12 +97,18 @@ impl Computer {
         }
     }
 
+    fn shortcut(start: &Self, reg_a: usize) -> Self {
+        let mut cur = start.clone();
+        cur.reg_a = reg_a;
+        cur.run_program();
+        cur
+    }
+
     fn run_program(&mut self) {
         while self.do_instruction() {}
     }
 
     fn do_instruction(&mut self) -> bool {
-        dbg!(&self);
         let op_literal = self.program[self.cur_op + 1];
         let op_combo = self.get_combo_value();
         let cur_literal = self.program[self.cur_op];
@@ -100,7 +123,6 @@ impl Computer {
                 self.reg_b = op_combo % 8;
             }
             Op::Jnz => {
-                println!("JUMP");
                 if self.reg_a != 0 {
                     self.cur_op = op_literal;
                     return self.cur_op < self.program.len();
@@ -110,7 +132,7 @@ impl Computer {
                 self.reg_b ^= self.reg_c;
             }
             Op::Out => {
-                self.result.push((op_combo % 8).to_string());
+                self.result.push(op_combo % 8);
             }
             Op::Bdv => {
                 self.reg_b = self.reg_a / 2_usize.pow(op_combo as u32);
@@ -135,7 +157,11 @@ impl Computer {
     }
 
     fn get_result(&self) -> String {
-        self.result.join(",")
+        self.result
+            .iter()
+            .map(|x| x.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
     }
 }
 
@@ -150,21 +176,6 @@ enum Op {
     Bdv,
     Cdv,
 }
-
-// impl From<Op> for usize {
-//     fn from(value: Op) -> Self {
-//         match value {
-//             Op::Adv => 0,
-//             Op::Bxl => 1,
-//             Op::Bst => 2,
-//             Op::Jnz => 3,
-//             Op::Bxc => 4,
-//             Op::Out => 5,
-//             Op::Bdv => 6,
-//             Op::Cdv => 7,
-//         }
-//     }
-// }
 
 impl From<usize> for Op {
     fn from(value: usize) -> Self {
@@ -183,7 +194,6 @@ impl From<usize> for Op {
 }
 
 #[cfg(test)]
-#[allow(unused_imports)]
 mod tests {
     use super::*;
 
@@ -198,7 +208,7 @@ mod tests {
     #[test]
     fn part_1_test_2() {
         let computer = Computer::new(10, 0, 0, vec![5, 0, 5, 1, 5, 4]);
-        assert_eq!(&part_1(computer), "0,1,2");
+        assert_eq!(&part_1(&computer), "0,1,2");
     }
 
     #[test]
@@ -213,7 +223,6 @@ mod tests {
     fn part_1_test_4() {
         let mut computer = Computer::new(0, 29, 0, vec![1, 7]);
         computer.run_program();
-        dbg!(&computer);
         assert_eq!(computer.reg_b, 26);
     }
 
@@ -227,11 +236,6 @@ mod tests {
     #[test]
     fn part_1_test_6() {
         let computer = load_input("example");
-        assert_eq!(&part_1(computer), "4,6,3,5,6,3,5,2,1,0");
-    }
-
-    #[test]
-    fn part_2_test() {
-        // todo!()
+        assert_eq!(&part_1(&computer), "4,6,3,5,6,3,5,2,1,0");
     }
 }

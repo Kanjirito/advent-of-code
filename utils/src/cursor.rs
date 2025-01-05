@@ -43,7 +43,37 @@ impl Cursor {
     where
         F: Fn(&T) -> bool,
     {
-        let modif = AROUND_MODIF[usize::from(self.get_cur_dire())];
+        self.move_in_direction(check, grid, self.get_cur_dire())
+    }
+
+    pub fn turn_right(&mut self) -> Direction {
+        self.cur_dire = (self.cur_dire + 1) % self.allowed_dire.len();
+        self.get_cur_dire()
+    }
+
+    pub fn turn_left(&mut self) -> Direction {
+        self.cur_dire = (self.cur_dire.overflowing_sub(1).0) % self.allowed_dire.len();
+        self.get_cur_dire()
+    }
+
+    pub fn get_cur_dire(&self) -> Direction {
+        self.allowed_dire[self.cur_dire]
+    }
+
+    pub fn move_in_direction<F, T>(
+        &mut self,
+        check: F,
+        grid: &Grid<T>,
+        direction: Direction,
+    ) -> MoveResult
+    where
+        F: Fn(&T) -> bool,
+    {
+        if !self.allowed_dire.contains(&direction) {
+            return MoveResult::InvalidDirection;
+        }
+
+        let modif = AROUND_MODIF[usize::from(direction)];
 
         let new_x = match self.x.checked_add_signed(modif.0) {
             Some(x) if x < grid[0].len() => x,
@@ -62,20 +92,6 @@ impl Cursor {
         } else {
             MoveResult::CheckFailed
         }
-    }
-
-    pub fn turn_right(&mut self) -> Direction {
-        self.cur_dire = (self.cur_dire + 1) % self.allowed_dire.len();
-        self.get_cur_dire()
-    }
-
-    pub fn turn_left(&mut self) -> Direction {
-        self.cur_dire = (self.cur_dire.overflowing_sub(1).0) % self.allowed_dire.len();
-        self.get_cur_dire()
-    }
-
-    pub fn get_cur_dire(&self) -> Direction {
-        self.allowed_dire[self.cur_dire]
     }
 
     pub fn set_cur_dire(&mut self, target: usize) {
@@ -180,6 +196,7 @@ pub enum MoveResult {
     Ok,
     OutOfBounds,
     CheckFailed,
+    InvalidDirection,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]

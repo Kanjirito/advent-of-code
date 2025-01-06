@@ -1,10 +1,120 @@
+use std::collections::HashMap;
 use std::fmt::Display;
+use std::hash::Hash;
 use std::io::BufRead;
+use std::ops::Deref;
 
 pub mod cursor;
 pub mod math;
 
 pub type Grid<T> = Vec<Vec<T>>;
+
+#[derive(Debug, Clone)]
+pub struct Counter<T>(HashMap<T, usize>);
+
+impl<T> Counter<T> {
+    pub fn new() -> Self {
+        Self(HashMap::new())
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        Self(HashMap::with_capacity(capacity))
+    }
+
+    pub fn into_inner(self) -> HashMap<T, usize> {
+        self.0
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+    }
+
+    pub fn in_order(&self) -> Vec<(&T, usize)> {
+        let mut tmp: Vec<(&T, usize)> = self.0.iter().map(|(k, v)| (k, *v)).collect();
+        tmp.sort_unstable_by_key(|(_, v)| *v);
+        tmp.reverse();
+        tmp
+    }
+
+    pub fn nth_most_common(&self, n: usize) -> Option<(&T, usize)> {
+        if n >= self.0.len() {
+            None
+        } else {
+            Some(self.in_order()[n])
+        }
+    }
+}
+
+impl<T> Counter<T>
+where
+    T: Hash + Eq,
+{
+    pub fn count(&mut self, key: T) -> usize {
+        let v = self.0.entry(key).or_default();
+        *v += 1;
+        *v
+    }
+
+    pub fn decrease(&mut self, key: &T) -> Option<usize> {
+        match self.0.get_mut(key) {
+            Some(v) => {
+                *v -= 1;
+                let new = *v;
+                if *v == 0 {
+                    self.0.remove(key);
+                }
+                Some(new)
+            }
+            None => None,
+        }
+    }
+}
+
+impl<T> FromIterator<T> for Counter<T>
+where
+    T: Hash + Eq,
+{
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        let mut counter = Self::new();
+        counter.extend(iter);
+        counter
+    }
+}
+
+impl<T> Extend<T> for Counter<T>
+where
+    T: Hash + Eq,
+{
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for item in iter {
+            self.count(item);
+        }
+    }
+}
+
+impl<T> IntoIterator for Counter<T> {
+    type Item = (T, usize);
+
+    type IntoIter = std::collections::hash_map::IntoIter<T, usize>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+impl<T> Default for Counter<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<T> Deref for Counter<T> {
+    type Target = HashMap<T, usize>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
 
 /// Struct that helps creating a grid with a border.
 #[derive(Debug, Clone, PartialEq, PartialOrd, Eq, Ord, Hash)]

@@ -3,6 +3,7 @@ use std::fmt::Display;
 use std::hash::Hash;
 use std::io::BufRead;
 use std::ops::Deref;
+use std::cmp::Reverse;
 
 pub mod cursor;
 pub mod math;
@@ -31,16 +32,15 @@ impl<T> Counter<T> {
 
     pub fn in_order(&self) -> Vec<(&T, usize)> {
         let mut tmp: Vec<(&T, usize)> = self.0.iter().map(|(k, v)| (k, *v)).collect();
-        tmp.sort_unstable_by_key(|(_, v)| *v);
-        tmp.reverse();
+        tmp.sort_unstable_by_key(|(_, v)| Reverse(*v));
         tmp
     }
 
     pub fn nth_most_common(&self, n: usize) -> Option<(&T, usize)> {
-        if n >= self.0.len() {
+        if n > self.0.len() || n == 0 {
             None
         } else {
-            Some(self.in_order()[n])
+            Some(self.in_order()[n - 1])
         }
     }
 }
